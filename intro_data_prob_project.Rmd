@@ -1,0 +1,259 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+For this project, we require ggplot2 package for the plots and dplyr for data manipulation. These two packages contain a wide range of functions to be used, and should encompass all the functions we require to do this EDA. 
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+The data can be loaded by clicking on File->Open File and selecting the RData file. Or a much simpler way is to use the load() function after ensuring that the current location is in the same location 
+
+```{r load-data}
+load("brfss2013.RData")
+```
+The data is loaded and stored in a variable that is the same as the file name 'brfss2013'.
+
+
+* * *
+
+## Part 1: Data
+According to the BRFSS website and the codebook provided about the dataset, the dataset is used for surveillance purposes of the entire non-institutionalized US adult population. 
+
+The aim is to collect information on a wide rnage of factors, such as preventive health practices and risk behaviors that are linked to diseases or injuries. In this dataset, the factors range from exercise and sleep patterns to HIV/AIDS knowledge and healthcare access.
+
+The wesbite further illustrates the two methods of data collection: landline-telephone based surveys and cellular-telephone based surveys. In the landline-telephone based surveys, the interviewers collect data from a randomly sampled adult in a household. In the cellular-telephone based surveys, the interviewers collect data from an adult who uses his cellular telephone and resides in a private residence or college premises.
+
+This explanation of the data collection makes it clear that random sampling was used, to select randomly an adult in the household, making it possible to generalize to the adult population of that household to a large extent. A form of stratified sampling could have been used, or multistage sampling. That is not sure. The households must also have been randomly sampled, although such information is not explicitly provided in the website or codebook. Information on how the households were sampled, and the factors on which they were sampled, such as demographic or locality, should be further specified.
+
+The results can be generalized to the entire US population, because of the random sampling that haas been carried out. 
+
+Random assignment is not done, so we cannot ensure that causality is the case for all the results. 
+
+Further information about each of the 330 variables is given in the codebook, which shall be used later. 
+* * *
+
+## Part 2: Research questions
+
+Looking at the codebook and its explanation of each of the variables, many interesting questions can be raised, thanks to the vast amount of data at our hands. 
+
+These are only some of the possible questions that could have been asked. I have chosen a few questions that might seem a bit different, but might prove to be interesting, maybe even useful. 
+
+
+**Research question 1:**
+Which state uses the seatbelts least in their cars and which state uses them the most? (Is there a correlation between states and seatbelt usage?) 
+
+Seatbelts do save lives and whether this behavior reduces or does not affect the number of car accident deaths can be easily found by further comparing these results with the accident statistics, perhaps from another dataset. Again, causation and correlation cannot be seperated, because it is also possible that because of the low number of car accidents, people do not wear seatbelts. 
+
+**Research question 2:**
+Is there any correlation between exercise and heart attacks/heart diseases? 
+
+Exercise is said to be healthy for the body and the brain, but here, we have a chance to see an actual outcome of doing exercise, in relation to the heart. This may help drive home the point that exercise is an inherently pivotal part of everyday life. 
+
+
+**Research question 3:**
+How does amount of sleep change with age? (Is there a correlation between sleep time and age?)
+
+Sleep is again a very important part of well-being. 6-8 hours of sleep is recommended usually, but with a lot of responsibilities, this tends to change. With a difference in age, comes a difference in responsibilities and routines. Does this affect sleep patterns?
+
+
+## Part 3: Exploratory data analysis
+
+**Research question 1:**
+
+The two variables in question here are the state and seatbelt. We can get a summary of both the variables below.
+```{r summary}
+brfss2013 %>% 
+  select(X_state,seatbelt) %>% 
+  str()
+```
+There are 55 possible values, but hopefully the states with highest and lowest are actual states and not an NA value.
+There are 6 possible values of the seatbelt, from Always to Never. 
+
+Next we can group the data according the state, and check the seatbelt usage among them:
+```{r}
+highseat<-brfss2013 %>% 
+  select(X_state,seatbelt) %>% 
+  group_by(X_state)%>% 
+  filter(!is.na(seatbelt)) %>%  
+  summarise(high=sum(seatbelt=="Always")/n()) %>% 
+  arrange(desc(high))
+```
+In that chunk of code, we select only the relevant variables (state and seatbelt), group by state, remove all the NA values in seatbelt, find the proportion of drivers who always use the seatbelt and arrange them in descending order. We place it in a data tuple, highseat 
+We can see here that Oregon has the highest proportion of drivers who always use their seatbelts.
+
+Let us plot that result: (only the top 10 for simplicity and understandability)
+
+```{r}
+ggplot(data=highseat[1:10,],aes(x=X_state,y=high)) +geom_point()
+```
+
+
+
+What about the state with the lowest? 
+There are 2 methods: To find the lowest proportion which "always" uses a seatbelt, or the highest proportion that "never" uses a seatbelt. Let us find both and see if they are the same. 
+
+```{r}
+brfss2013 %>% 
+  select(X_state,seatbelt) %>%
+  group_by(X_state)%>% 
+  filter(!is.na(seatbelt)) %>%  
+  summarise(low=sum(seatbelt=="Always")/n()) %>% 
+  arrange(low)
+```
+
+South Dakota has the lowest proportion of drivers who always use their seatbelts. 
+
+For drivers who never use their seatbelts:
+
+```{r}
+lowseat=brfss2013 %>% 
+  select(X_state,seatbelt) %>% 
+  group_by(X_state)%>% 
+  filter(!is.na(seatbelt)) %>%  
+  summarise(low=sum(seatbelt=="Never")/n()) %>% 
+  arrange(desc(low))
+lowseat
+```
+
+The results seem to differ for those drivers who never use their seatbelts. New Hampshire seems to be first on this list, followed by Pennsylvania, which are 5th and 10th in the other list, followed by South Dakota. 
+
+Although this is the better judge of the least amount of seatbelt usage, South Dakota does appear fairly high on both lists, so it should also be taken into consideration. 
+
+Let us plot this result:
+```{r}
+ggplot(data=lowseat[1:10,],aes(x=X_state,y=low)) + geom_point()
+```
+
+We have used 4 variables in this question, 2 existing, X_state and seatbelt, and 2 custom, high and low.  
+
+In conclusion to this question, Oregon is the safest in terms of seatbelt usage (try the other method if you want to) and New Hampshire is the least safe (although it could be South Dakota as well)
+
+
+**Research question 2:**
+
+For this question, we have to use the variables dealing with heart attack and exercise. Let us check the structure of the required variables:
+```{r}
+brfss2013 %>%  
+  select(cvdinfr4,cvdcrhd4,exerany2) %>%
+  str()
+```
+
+```{r}
+brfss2013 %>%
+  group_by(exerany2) %>%
+  summarize(count=n())
+```
+There are around 330,000 Yes and 125,000 No as well as 34,000 NA, which we will have to remove. 
+
+We can create a table of values, which can help us compare the values:
+
+```{r}
+  table(brfss2013$exerany2,brfss2013$cvdinfr4)
+```
+
+The table() function has not considered the NA values, making things easier for us.
+As we can see, there is a large majority of people who exercise and do not have a heart attack (~70%). 
+73% of people who have never had a heart attack exercised in the last 30 days. 
+
+But it is also seen that of the people who get heart attacks, the majority is those who exercise. Around 59% of people who have been diagnosed with heart attacks have exercised in the last 30 days. Perhaps, it is because they have begun exercising after a heart attack scare. We cannot say for sure. 
+
+Let us plot the results of this table:
+
+```{r}
+ggplot(data=brfss2013 %>% filter(!is.na(exerany2)), aes(x=exerany2)) + geom_bar(aes(fill=cvdinfr4))
+```
+
+The plot might not be as useful as the table, but it shows us the representation of the whole thing. 
+
+We do the same thing for exercise and angio/heart disease.
+
+```{r}
+table(brfss2013$exerany2,brfss2013$cvdcrhd4)
+```
+
+We get a similar response, which isn't that surprising. The majority again is people who exercise and do not have a heart disease (~70% again). 
+
+Among people who have never had a heart disease, 73.5% exercised in the last 30 days. 
+
+Among people with a heart disease, around 61% exercised in the last 30 days. 
+
+We can plot the result of this table in a similar manner:
+
+```{r}
+ggplot(data=brfss2013 %>% filter(!is.na(exerany2)), aes(x=exerany2)) + geom_bar(aes(fill=cvdcrhd4))
+```
+
+We get a very similar plot again. 
+
+For 2 sets of variables, each with categorical values, the number of plots which make sense become very limited, as we have seen here.
+
+We have used 3 variables here, exercise in the last 30 days, history of heart attacks and history of heart disease. 
+
+In conclusion, exercising does seem to affect the risk of heart attack and heart diseases, especially if you've never had them before. 
+
+
+**Research question 3:**
+
+For this question, we only require 2 variables, sleep and age (in 5-year categories). 
+```{r}
+brfss2013 %>%
+  select(sleptim1,X_ageg5yr) %>%
+  str()
+```
+
+Now, let us check the average sleeping time for each age group. 
+
+```{r}
+sleep1=brfss2013 %>%
+  filter(!is.na(sleptim1),!is.na(X_ageg5yr)) %>%
+  group_by(X_ageg5yr) %>%
+  summarize(mesleep=mean(sleptim1)) %>%
+  arrange(desc(mesleep))
+sleep1
+```
+
+It is evident that those above 80 sleep the most, and the top 4 entries are from those above 65, before we see a somewhat surprising result of 18 to 24. 
+This shows that the oldest do sleep the most but the youngest sleep a lot too, not what we originally might have hypothesized.
+
+So who sleeps the least then? Let us arrange the same result in ascending order: 
+```{r}
+sleep2=brfss2013 %>%
+  filter(!is.na(sleptim1),!is.na(X_ageg5yr)) %>%
+  group_by(X_ageg5yr) %>%
+  summarize(mesleep=mean(sleptim1)) %>%
+  arrange(mesleep)
+sleep2
+```
+So from this, we can see that people from the ages of 45-49 sleep the least, and it is quite clear that the ages 30-55 take up the first 5 positions, all slightly around a mean of 6.85. 
+
+But it is nice to see that the minimum average sleep is 6.8 hours and the maximum is 7.48 hours, which falls between the range of 6-8 hours recommended. 
+
+Let us plot this result: 
+The top 5 longest sleepers:
+```{r}
+ggplot(data=sleep1[1:5,],aes(x=X_ageg5yr,y=mesleep)) + geom_point()
+```
+
+The bottom 5 longest sleepers:
+```{r}
+ggplot(data=sleep2[1:5,],aes(x=X_ageg5yr,y=mesleep))+geom_point()
+```
+
+In conclusion, people above the age of 80 sleep the most, and if you're around 65 years old, get ready for a lot more sleeping for at least the next 15 years. People from ages 45-49 sleep the least, and if you're around 30 years old, also get ready for a lot less sleeping for at least the next 25 years. 
+
+
+
+These are the results of the 3 research questions which I have chosen from the BRFSS 2013 data. 
